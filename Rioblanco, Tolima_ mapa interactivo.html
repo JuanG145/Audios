@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rioblanco, Tolima: mapa interactivo</title>
+<style>
+:root{
+  --bg:#f3f6ee; --card:#ffffff; --ink:#1f2b22; --muted:#5b6b5f; --line:#d5dfd0;
+  --land:#cfe3b5; --land2:#b6d391; --hill:#8fb673; --paramo:#d9d3a3; --river:#2b8fd1; --road:#b5702f;
+  --urban:#e0533d; --rural:#2f8f5b; --scene:#8a5cc7; --people:#e0a21a; --accent:#2f8f5b;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); box-sizing:border-box;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121a15; --card:#1b261f; --ink:#e8f0e6; --muted:#9db0a2; --line:#2c3b31;
+    --land:#2d4a32; --land2:#25402b; --hill:#3d6a45; --paramo:#5a5a3a; --river:#5ab4f0; --road:#e0a064;
+    --urban:#ff7a64; --rural:#58c98a; --scene:#b794f0; --people:#f3c24d; --accent:#58c98a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121a15; --card:#1b261f; --ink:#e8f0e6; --muted:#9db0a2; --line:#2c3b31;
+  --land:#2d4a32; --land2:#25402b; --hill:#3d6a45; --paramo:#5a5a3a; --river:#5ab4f0; --road:#e0a064;
+  --urban:#ff7a64; --rural:#58c98a; --scene:#b794f0; --people:#f3c24d; --accent:#58c98a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,'Times New Roman',serif}
+body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+header{padding:22px 18px 8px;max-width:1100px;margin:auto}
+h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:.5px}
+header p{margin:6px 0 0;color:var(--muted);font-family:system-ui,sans-serif;font-size:15px;max-width:720px}
+.wrap{max-width:1100px;margin:auto;padding:8px 18px 28px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px}
+@media(max-width:820px){.wrap{grid-template-columns:1fr}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px;font-family:system-ui,sans-serif}
+.chip{border:2px solid var(--c);color:var(--ink);background:transparent;border-radius:999px;padding:6px 12px;font-size:13.5px;cursor:pointer;display:flex;gap:6px;align-items:center}
+.chip[aria-pressed="true"]{background:var(--c);color:#fff}
+.chip:focus-visible,.zbtn:focus-visible,.tour:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.mapbox{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;position:relative;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+svg{display:block;width:100%;height:auto}
+.zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
+.zbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:20px;cursor:pointer}
+.mk{cursor:pointer;transition:transform .15s}
+.mk:hover .dot,.mk:focus .dot,.mk.on .dot{stroke-width:5;stroke:#fff}
+.mk:focus{outline:none}
+.mk .pulse{animation:pulse 2.2s infinite;transform-origin:center;transform-box:fill-box}
+@keyframes pulse{0%{opacity:.55;transform:scale(1)}100%{opacity:0;transform:scale(2.6)}}
+.flow{stroke-dasharray:10 8;animation:flow 1.8s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-36}}
+.lbl{font-family:system-ui,sans-serif;font-size:13px;fill:var(--ink);paint-order:stroke;stroke:var(--land);stroke-width:3.5px;pointer-events:none}
+.nb{font-family:system-ui,sans-serif;font-size:12px;fill:var(--muted);letter-spacing:2px;text-transform:uppercase}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 6px 24px rgba(0,0,0,.08);font-family:system-ui,sans-serif;align-self:start}
+.tag{display:inline-block;font-size:12px;color:#fff;background:var(--t,var(--accent));padding:3px 10px;border-radius:999px}
+.panel h2{font-family:Georgia,serif;margin:10px 0 6px;font-size:24px}
+.panel p{line-height:1.55;margin:8px 0;font-size:15px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.fact{background:var(--bg);border-radius:12px;padding:10px;border:1px solid var(--line)}
+.fact b{display:block;font-size:19px;font-family:Georgia,serif}
+.fact span{font-size:12px;color:var(--muted)}
+.tour{margin-top:12px;width:100%;padding:10px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-size:15px;cursor:pointer}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Rioblanco, Tolima</h1>
+  <p>Un recorrido por el sur del Tolima: su casco urbano, la zona rural, las vías, el agua, los paisajes y la gente. Toca los puntos del mapa para conocerlos.</p>
+</header>
+<div class="wrap">
+  <section>
+    <div class="chips" id="chips" role="group" aria-label="Capas del mapa"></div>
+    <div class="mapbox">
+      <div class="zoom">
+        <button class="zbtn" id="zin" aria-label="Acercar">+</button>
+        <button class="zbtn" id="zout" aria-label="Alejar">−</button>
+        <button class="zbtn" id="zreset" aria-label="Restablecer" style="font-size:15px">⟲</button>
+      </div>
+      <svg id="map" viewBox="0 0 800 600" role="img" aria-label="Mapa esquemático del municipio de Rioblanco, Tolima">
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--land)"/><stop offset="1" stop-color="var(--land2)"/></linearGradient>
+        </defs>
+        <rect width="800" height="600" fill="var(--card)"/>
+        <text class="nb" x="400" y="26" text-anchor="middle">Chaparral ↑</text>
+        <text class="nb" x="780" y="300" text-anchor="end" transform="rotate(90 780 300)">Ataco →</text>
+        <text class="nb" x="400" y="588" text-anchor="middle">↓ Planadas</text>
+        <text class="nb" x="22" y="300" text-anchor="middle" transform="rotate(-90 22 300)">← Valle del Cauca</text>
+        <path d="M110 120 C170 50 300 60 400 52 C520 44 640 80 700 150 C740 210 722 290 700 350 C680 420 640 500 540 535 C440 565 320 548 230 520 C150 492 90 430 76 340 C64 260 70 180 110 120Z" fill="url(#g1)" stroke="var(--hill)" stroke-width="3"/>
+        <g id="gScene"></g><g id="gWater"></g><g id="gRoads"></g><g id="gPts"></g>
+      </svg>
+    </div>
+    <p class="note">Mapa esquemático para explorar: las posiciones y los trazados son aproximados y no están a escala.</p>
+  </section>
+  <aside class="panel" id="panel" aria-live="polite"></aside>
+</div>
+<script>
+var NS='http://www.w3.org/2000/svg';
+var LAYERS={
+  urbano:{n:'Zona urbana',c:'var(--urban)',e:'🏘️'},
+  rural:{n:'Zona rural',c:'var(--rural)',e:'🌱'},
+  vias:{n:'Carreteras',c:'var(--road)',e:'🛣️'},
+  agua:{n:'Fuentes hídricas',c:'var(--river)',e:'💧'},
+  paisaje:{n:'Paisajes',c:'var(--scene)',e:'⛰️'},
+  gente:{n:'Gente',c:'var(--people)',e:'☕'}
+};
+var INTRO={tag:'Municipio',layer:'rural',t:'Bienvenida a Rioblanco',
+ p:['Rioblanco queda en el sur del Tolima, en plena cordillera Central. Limita con Chaparral al norte, Ataco al oriente, Planadas al sur y el departamento del Valle del Cauca al occidente.','Fue fundado en 1900 y hoy se divide en un área urbana y una zona rural muy extensa, con montañas, ríos y páramo.'],
+ facts:[['23.429','habitantes (proyección DANE 2024)'],['19.090','habitantes (censo 2018)'],['10 + 1 + 99','barrios, corregimiento y veredas'],['≈ 900 m','altitud del casco urbano']]};
+var PTS=[
+ {id:'cab',l:'urbano',x:400,y:300,r:13,t:'Casco urbano de Rioblanco',p:['Es la cabecera municipal. El área urbana tiene 10 barrios y desde aquí salen las vías hacia Chaparral, hacia Herrera y hacia el oriente.','Es el punto de encuentro del municipio: comercio, servicios, colegios y alcaldía.']},
+ {id:'her',l:'rural',x:218,y:405,r:11,t:'Herrera',p:['Es el corregimiento del municipio, hacia la zona montañosa del occidente.','En épocas de lluvias la vía Rioblanco–Herrera ha tenido pérdida de banca, así que conviene revisar su estado antes de viajar.']},
+ {id:'uri',l:'rural',x:318,y:190,r:9,t:'Vereda La Uribe',p:['Una de las veredas que hacen parte de las 99 de la zona rural. Su vida gira en torno al campo y a los caminos que la conectan con la cabecera.']},
+ {id:'mar',l:'rural',x:528,y:180,r:9,t:'Vereda Maracaibo',p:['Vereda de la zona rural de Rioblanco, parte de ese tejido de fincas, caminos y quebradas que forma el campo del municipio.']},
+ {id:'jun',l:'rural',x:462,y:430,r:9,t:'Vereda Juntas',p:['Su nombre habla de confluencias: en la zona rural, los caminos y las aguas se encuentran en muchos puntos como este.']},
+ {id:'alb',l:'rural',x:600,y:370,r:9,t:'Vereda Albania',p:['Vereda ubicada en la parte oriental del municipio, hacia el lado de Ataco.']},
+ {id:'dar',l:'rural',x:320,y:480,r:9,t:'Vereda Darién (núcleo La Lindosa)',p:['Vereda al sur del municipio, en el núcleo de La Lindosa, donde también se vive del trabajo campesino.']},
+ {id:'v1',l:'vias',x:392,y:150,r:9,t:'Vía Rioblanco–Chaparral',p:['Es la vía central que comunica a Rioblanco con Chaparral, su vecino del norte y la salida principal hacia el resto del Tolima.','Con las lluvias fuertes se han presentado derrumbes que la han dejado cerrada por momentos; vale la pena consultar su estado antes de viajar.']},
+ {id:'v2',l:'vias',x:312,y:362,r:9,t:'Vía a Herrera',p:['Conecta la cabecera con el corregimiento de Herrera. Es una carretera de montaña, con curvas y tramos sensibles a las lluvias.']},
+ {id:'v3',l:'vias',x:575,y:322,r:9,t:'Conexión hacia Ataco',p:['Hacia el oriente el municipio se comunica con Ataco. Los deslizamientos también han afectado esta conexión en temporada invernal.']},
+ {id:'v4',l:'vias',x:408,y:500,r:9,t:'Camino hacia Planadas',p:['Hacia el sur está Planadas, el otro vecino del municipio. El trazado del mapa es solo una referencia de esa conexión.']},
+ {id:'rb',l:'agua',x:300,y:270,r:9,t:'Río Rioblanco',p:['Es el río que da nombre al municipio. Baja de la cordillera atravesando la zona del casco urbano y se hace crecer rápido cuando llueve fuerte en la montaña.']},
+ {id:'me',l:'agua',x:372,y:92,r:9,t:'Río Mendarco',p:['Uno de los ríos principales del municipio. Junto al Rioblanco y al Hereje, es de los que han tenido crecientes súbitas en épocas de invierno.']},
+ {id:'he',l:'agua',x:512,y:432,r:9,t:'Río Hereje',p:['Río del sur del municipio. Comparte con el Rioblanco y el Mendarco la fama de crecer de golpe con las lluvias, por eso se vigila en temporada de invierno.']},
+ {id:'par',l:'paisaje',x:150,y:180,r:11,t:'Páramo de Las Hermosas',p:['Hacia el occidente, en lo más alto de la cordillera, se encuentra el Páramo de Las Hermosas: frailejones, neblina y agua que alimenta los ríos de la región.']},
+ {id:'mer',l:'paisaje',x:258,y:318,r:10,t:'Parque Natural Regional El Meridiano Wepe Wala',p:['Área protegida en Rioblanco. Existe un corredor complementario de conectividad ecológica donde se han adelantado procesos de rehabilitación del bosque.']},
+ {id:'cor',l:'paisaje',x:660,y:230,r:10,t:'Ladera cafetera',p:['Más abajo de la cordillera el paisaje cambia: laderas verdes, fincas pequeñas, cafetales y quebradas que bajan hacia los ríos.']},
+ {id:'g1',l:'gente',x:430,y:332,r:10,t:'Gente del casco urbano',p:['La vida del pueblo se mueve entre la plaza, el mercado, los colegios y las conversaciones en la esquina. Es un municipio pequeño, donde casi todos se conocen.']},
+ {id:'g2',l:'gente',x:548,y:262,r:10,t:'Familias campesinas y caficultoras',p:['El campo del sur del Tolima se sostiene con el trabajo de familias campesinas que cultivan y cuidan la tierra, muchas de ellas con café en sus fincas.']},
+ {id:'g3',l:'gente',x:200,y:300,r:10,t:'Comunidades de montaña',p:['En las veredas altas, cerca de Herrera y del páramo, la gente se mueve por caminos de herradura y trochas, y el trabajo colectivo es clave para mantener vías, acueductos y escuelas.']}
+];
+var ROADS=[
+ {d:'M400 300 C396 230 380 150 372 40',w:5},
+ {d:'M400 300 C350 330 270 370 218 405',w:4},
+ {d:'M400 300 C480 316 600 324 735 300',w:4},
+ {d:'M400 300 C412 380 400 450 410 545',w:3,dash:1}
+];
+var WATER=[
+ {d:'M175 228 C250 258 330 262 400 296 C490 336 580 280 665 262',w:5},
+ {d:'M372 60 C380 130 410 220 400 296',w:4},
+ {d:'M300 535 C360 480 440 440 505 430 C560 424 610 392 650 340',w:4}
+];
+var SCENE=[
+ {t:'path',d:'M82 110 C120 70 190 96 215 150 C190 190 120 240 82 220Z',f:'var(--paramo)'},
+ {t:'path',d:'M175 270 C215 250 270 270 290 320 C260 360 205 350 175 310Z',f:'var(--hill)',o:.55},
+ {t:'path',d:'M600 170 C650 150 705 185 700 250 C660 275 610 250 600 170Z',f:'var(--hill)',o:.45}
+];
+var on={urbano:1,rural:1,vias:1,agua:1,paisaje:1,gente:1}, cur=null;
+
+function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+
+SCENE.forEach(function(s){el('path',{d:s.d,fill:s.f,opacity:s.o||.8},document.getElementById('gScene'))});
+[ [150,170],[120,150],[185,200],[135,195],[640,215],[675,240],[300,300],[235,330] ].forEach(function(q){
+  el('path',{d:'M'+q[0]+' '+q[1]+' l9 -16 l9 16z',fill:'var(--hill)',opacity:.9},document.getElementById('gScene'))});
+
+var gR=document.getElementById('gRoads'), gW=document.getElementById('gWater'), gP=document.getElementById('gPts');
+WATER.forEach(function(w){var p=el('path',{d:w.d,fill:'none',stroke:'var(--river)','stroke-width':w.w,'stroke-linecap':'round',opacity:.9},gW);p.setAttribute('class','flow');p.dataset.layer='agua'});
+ROADS.forEach(function(r){var p=el('path',{d:r.d,fill:'none',stroke:'var(--road)','stroke-width':r.w,'stroke-linecap':'round'},gR);if(r.dash)p.setAttribute('stroke-dasharray','4 8');p.dataset.layer='vias'});
+
+PTS.forEach(function(P){
+  var L=LAYERS[P.l];
+  var g=el('g',{class:'mk',tabindex:0,role:'button','aria-label':P.t,transform:'translate('+P.x+' '+P.y+')'},gP);
+  g.dataset.layer=P.l; g.dataset.id=P.id;
+  if(P.l==='urbano'||P.l==='rural')el('circle',{r:P.r,fill:L.c,class:'pulse'},g);
+  el('circle',{r:P.r,fill:L.c,stroke:'var(--card)','stroke-width':3,class:'dot'},g);
+  var t=el('text',{y:P.r>=11?-P.r-6:4,x:0,'text-anchor':'middle','font-size':P.r>=11?'0':'11'},g);
+  if(P.l==='urbano'||P.l==='rural'){var lb=el('text',{x:0,y:P.r+16,'text-anchor':'middle',class:'lbl'},g);lb.textContent=P.t.replace('Vereda ','').replace(' (núcleo La Lindosa)','').replace('Casco urbano de ','');}
+  else{t.textContent=L.e;t.setAttribute('font-size','11');t.setAttribute('y',4)}
+  g.addEventListener('click',function(){show(P)});
+  g.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();show(P)}});
+});
+
+var chips=document.getElementById('chips');
+Object.keys(LAYERS).forEach(function(k){
+  var b=document.createElement('button');b.className='chip';b.style.setProperty('--c',LAYERS[k].c);
+  b.setAttribute('aria-pressed','true');b.textContent=LAYERS[k].e+' '+LAYERS[k].n;
+  b.onclick=function(){on[k]=!on[k];b.setAttribute('aria-pressed',on[k]);apply()};chips.appendChild(b);
+});
+function apply(){document.querySelectorAll('[data-layer]').forEach(function(n){n.style.display=on[n.dataset.layer]?'':'none'})}
+
+var panel=document.getElementById('panel');
+function esc(s){return s}
+function show(P){
+  cur=P.id||null;
+  document.querySelectorAll('.mk').forEach(function(m){m.classList.toggle('on',m.dataset.id===P.id)});
+  var L=LAYERS[P.layer||P.l];
+  var h='<span class="tag" style="--t:'+L.c+'">'+(P.tag||L.n)+'</span><h2>'+P.t+'</h2>';
+  P.p.forEach(function(x){h+='<p>'+x+'</p>'});
+  if(P.facts){h+='<div class="facts">';P.facts.forEach(function(f){h+='<div class="fact"><b>'+f[0]+'</b><span>'+f[1]+'</span></div>'});h+='</div>'}
+  h+='<button class="tour" id="tourBtn">▶ Siguiente lugar del recorrido</button>';
+  panel.innerHTML=h;
+  document.getElementById('tourBtn').onclick=next;
+}
+var order=['cab','g1','v1','me','rb','her','par','mer','g3','g2','cor','he','alb','v3','dar','v4'];
+var oi=-1;
+function next(){oi=(oi+1)%order.length;var id=order[oi];var P=PTS.filter(function(p){return p.id===id})[0];
+  if(!on[P.l]){on[P.l]=1;document.querySelectorAll('.chip').forEach(function(c){c.setAttribute('aria-pressed','true')});apply()}
+  show(P)}
+show(INTRO);
+
+// zoom
+var svg=document.getElementById('map'),vb={x:0,y:0,w:800,h:600};
+function setVB(){svg.setAttribute('viewBox',vb.x+' '+vb.y+' '+vb.w+' '+vb.h)}
+function zoom(f){var cx=vb.x+vb.w/2,cy=vb.y+vb.h/2;var nw=Math.min(800,Math.max(320,vb.w*f)),nh=nw*.75;
+  vb.w=nw;vb.h=nh;vb.x=Math.min(800-nw,Math.max(0,cx-nw/2));vb.y=Math.min(600-nh,Math.max(0,cy-nh/2));setVB()}
+document.getElementById('zin').onclick=function(){zoom(.7)};
+document.getElementById('zout').onclick=function(){zoom(1/.7)};
+document.getElementById('zreset').onclick=function(){vb={x:0,y:0,w:800,h:600};setVB()};
+var drag=null;
+svg.addEventListener('pointerdown',function(e){if(e.target.closest('.mk'))return;drag={x:e.clientX,y:e.clientY,vx:vb.x,vy:vb.y};svg.setPointerCapture(e.pointerId)});
+svg.addEventListener('pointermove',function(e){if(!drag)return;var k=vb.w/svg.getBoundingClientRect().width;
+  vb.x=Math.min(800-vb.w,Math.max(0,drag.vx-(e.clientX-drag.x)*k));vb.y=Math.min(600-vb.h,Math.max(0,drag.vy-(e.clientY-drag.y)*k));setVB()});
+svg.addEventListener('pointerup',function(){drag=null});
+</script>
+</body>
+</html>
